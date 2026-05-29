@@ -33,11 +33,16 @@ const getEndOfWeek = (date: Date): Date => {
 }
 
 function App() {
-  const { events, queryEvents, scheduledEvents } = useEvents()
+  const { dataSource, errorMessage, events, isLoading, queryEvents, scheduledEvents } = useEvents()
   const today = useMemo(() => new Date(), [])
   const todayEvents = queryEvents({ from: getStartOfDay(today), to: getEndOfDay(today) })
   const weekEvents = queryEvents({ from: getStartOfWeek(today), to: getEndOfWeek(today) })
   const upcomingEvents = scheduledEvents.slice(0, 4)
+  const statusLabel = isLoading
+    ? '正在同步日程'
+    : dataSource === 'api'
+      ? '后端 API 已连接'
+      : '本地兜底模式'
 
   return (
     <main className="app-shell">
@@ -46,9 +51,9 @@ function App() {
           <p className="eyebrow">Voice Calendar Tool</p>
           <h1>语音日历助手</h1>
         </div>
-        <div className="header-status" aria-label="应用状态">
-          <span className="status-dot"></span>
-          本地日程已就绪
+        <div className="header-status" aria-label="应用状态" title={errorMessage}>
+          <span className={`status-dot status-${dataSource}`}></span>
+          {statusLabel}
         </div>
       </header>
 

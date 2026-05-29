@@ -48,6 +48,10 @@
   background: var(--success);
 }
 
+.status-local {
+  background: #f59e0b;
+}
+
 .dashboard-grid {
   display: grid;
   grid-template-columns: minmax(320px, 0.95fr) minmax(360px, 1.05fr);
