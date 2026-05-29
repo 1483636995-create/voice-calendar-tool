@@ -23,6 +23,7 @@
 - React
 - TypeScript
 - Vite
+- Lucide React
 - Web Speech API
 - Browser Notification API
 - LocalStorage
@@ -47,6 +48,7 @@ http://127.0.0.1:5173/
 ### 当前进度
 
 - PR 1：事件数据模型与本地存储。
+- PR 2：语音日历工具主界面。
 
 ## Demo
 
