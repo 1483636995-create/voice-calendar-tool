@@ -1,121 +1,69 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
+import { useMemo } from 'react'
 import './App.css'
+import { CalendarView } from './components/CalendarView'
+import { EventList } from './components/EventList'
+import { ReminderCenter } from './components/ReminderCenter'
+import { VoicePanel } from './components/VoicePanel'
+import { useEvents } from './hooks/useEvents'
+
+const getStartOfDay = (date: Date): Date => {
+  const nextDate = new Date(date)
+  nextDate.setHours(0, 0, 0, 0)
+  return nextDate
+}
+
+const getEndOfDay = (date: Date): Date => {
+  const nextDate = getStartOfDay(date)
+  nextDate.setDate(nextDate.getDate() + 1)
+  return nextDate
+}
+
+const getStartOfWeek = (date: Date): Date => {
+  const nextDate = getStartOfDay(date)
+  const day = nextDate.getDay()
+  const mondayOffset = day === 0 ? -6 : 1 - day
+  nextDate.setDate(nextDate.getDate() + mondayOffset)
+  return nextDate
+}
+
+const getEndOfWeek = (date: Date): Date => {
+  const nextDate = getStartOfWeek(date)
+  nextDate.setDate(nextDate.getDate() + 7)
+  return nextDate
+}
 
 function App() {
-  const [count, setCount] = useState(0)
+  const { events, queryEvents, scheduledEvents } = useEvents()
+  const today = useMemo(() => new Date(), [])
+  const todayEvents = queryEvents({ from: getStartOfDay(today), to: getEndOfDay(today) })
+  const weekEvents = queryEvents({ from: getStartOfWeek(today), to: getEndOfWeek(today) })
+  const upcomingEvents = scheduledEvents.slice(0, 4)
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
+    <main className="app-shell">
+      <header className="app-header">
         <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
+          <p className="eyebrow">Voice Calendar Tool</p>
+          <h1>语音日历助手</h1>
         </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
+        <div className="header-status" aria-label="应用状态">
+          <span className="status-dot"></span>
+          本地日程已就绪
+        </div>
+      </header>
+
+      <section className="dashboard-grid" aria-label="语音日历工作台">
+        <VoicePanel />
+        <CalendarView
+          today={today}
+          todayCount={todayEvents.length}
+          weekCount={weekEvents.length}
+          totalCount={events.length}
+        />
+        <EventList title="今日日程" events={todayEvents} emptyLabel="今天还没有安排" />
+        <ReminderCenter events={upcomingEvents} />
       </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+    </main>
   )
 }
 
