@@ -24,22 +24,48 @@
 - TypeScript
 - Vite
 - Lucide React
+- Node.js
+- Express
+- Zod
 - Web Speech API
 - Browser Notification API
 - LocalStorage
 
 ## 本地运行
 
+前端开发服务：
+
 ```bash
 npm install
 npm run dev
 ```
 
-默认开发地址：
+后端 API 服务：
+
+```bash
+npm run server:dev
+```
+
+默认前端地址：
 
 ```text
 http://127.0.0.1:5173/
 ```
+
+默认 API 地址：
+
+```text
+http://127.0.0.1:4000/api
+```
+
+## 后端 API
+
+- `GET /api/health`
+- `GET /api/events`
+- `GET /api/events?from=...&to=...&status=scheduled`
+- `POST /api/events`
+- `PATCH /api/events/:eventId`
+- `DELETE /api/events/:eventId`
 
 ## 开发记录
 
@@ -49,6 +75,7 @@ http://127.0.0.1:5173/
 
 - PR 1：事件数据模型与本地存储。
 - PR 2：语音日历工具主界面。
+- PR 3：后端 API 服务与文件持久化。
 
 ## Demo
 
