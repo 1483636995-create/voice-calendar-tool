@@ -42,6 +42,10 @@ const getApiBaseUrl = (): string | undefined => {
   return baseUrl?.replace(/\/$/, '')
 }
 
+const getApiKey = (): string | undefined => {
+  return import.meta.env.VITE_API_KEY?.trim() || undefined
+}
+
 const normalizeDateParam = (value: Date | string): string => {
   return value instanceof Date ? value.toISOString() : value
 }
@@ -83,6 +87,7 @@ const normalizeEventInput = (
 
 const requestJson = async <Result>(path: string, init?: RequestInit): Promise<Result> => {
   const apiBaseUrl = getApiBaseUrl()
+  const apiKey = getApiKey()
 
   if (!apiBaseUrl) {
     throw new EventApiError(0, 'online API is not configured')
@@ -92,6 +97,7 @@ const requestJson = async <Result>(path: string, init?: RequestInit): Promise<Re
     ...init,
     headers: {
       'Content-Type': 'application/json',
+      ...(apiKey ? { 'x-demo-api-key': apiKey } : {}),
       ...init?.headers,
     },
   })
