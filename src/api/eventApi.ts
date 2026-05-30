@@ -27,11 +27,19 @@ export class EventApiError extends Error {
   }
 }
 
-const getApiBaseUrl = (): string => {
-  const configuredUrl = import.meta.env.VITE_API_BASE_URL
-  const baseUrl = configuredUrl || 'http://127.0.0.1:4000/api'
+const isLocalBrowserHost = (): boolean => {
+  if (typeof window === 'undefined') {
+    return true
+  }
 
-  return baseUrl.replace(/\/$/, '')
+  return ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
+}
+
+const getApiBaseUrl = (): string | undefined => {
+  const configuredUrl = import.meta.env.VITE_API_BASE_URL
+  const baseUrl = configuredUrl || (isLocalBrowserHost() ? 'http://127.0.0.1:4000/api' : undefined)
+
+  return baseUrl?.replace(/\/$/, '')
 }
 
 const normalizeDateParam = (value: Date | string): string => {
@@ -74,7 +82,13 @@ const normalizeEventInput = (
 }
 
 const requestJson = async <Result>(path: string, init?: RequestInit): Promise<Result> => {
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
+  const apiBaseUrl = getApiBaseUrl()
+
+  if (!apiBaseUrl) {
+    throw new EventApiError(0, 'online API is not configured')
+  }
+
+  const response = await fetch(`${apiBaseUrl}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
