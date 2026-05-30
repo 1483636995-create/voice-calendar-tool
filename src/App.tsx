@@ -33,7 +33,8 @@ const getEndOfWeek = (date: Date): Date => {
 }
 
 function App() {
-  const { addEvent, dataSource, errorMessage, events, isLoading, queryEvents, scheduledEvents } = useEvents()
+  const { addEvent, dataSource, deleteEvent, errorMessage, events, isLoading, queryEvents, scheduledEvents } =
+    useEvents()
   const today = useMemo(() => new Date(), [])
   const todayEvents = queryEvents({ from: getStartOfDay(today), to: getEndOfDay(today) })
   const weekEvents = queryEvents({ from: getStartOfWeek(today), to: getEndOfWeek(today) })
@@ -58,7 +59,7 @@ function App() {
       </header>
 
       <section className="dashboard-grid" aria-label="语音日历工作台">
-        <VoicePanel onCreateEvent={addEvent} onQueryEvents={queryEvents} />
+        <VoicePanel onCreateEvent={addEvent} onDeleteEvent={deleteEvent} onQueryEvents={queryEvents} />
         <CalendarView
           today={today}
           todayCount={todayEvents.length}

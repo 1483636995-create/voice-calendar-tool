@@ -7,10 +7,15 @@ import type { CalendarEvent, CreateCalendarEventInput, EventDateRange } from '..
 
 interface VoicePanelProps {
   onCreateEvent: (input: CreateCalendarEventInput) => Promise<CalendarEvent>
+  onDeleteEvent: (eventId: string) => Promise<CalendarEvent | undefined>
   onQueryEvents: (range?: EventDateRange) => CalendarEvent[]
 }
 
-const quickCommands = ['查看今天安排', '明天下午三点项目会', '播报本周日程']
+const quickCommands = ['查看今天安排', '明天下午三点项目会', '播报本周日程', '删除明天下午三点项目会']
+
+interface PendingDelete {
+  event: CalendarEvent
+}
 
 const intentLabels: Record<CalendarIntent['type'], string> = {
   create: '添加日程',
@@ -124,12 +129,106 @@ const buildQueryReply = (intent: CalendarIntent, events: CalendarEvent[]): strin
   return `${label}共有 ${events.length} 个日程：${visibleEvents}${moreText}`
 }
 
-export function VoicePanel({ onCreateEvent, onQueryEvents }: VoicePanelProps) {
+const normalizeMatchText = (value: string): string => {
+  return value.toLocaleLowerCase('zh-CN').replace(/\s+/g, '')
+}
+
+const isSameDay = (left: Date, right: Date): boolean => {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  )
+}
+
+const matchesDeleteTitle = (event: CalendarEvent, title?: string): boolean => {
+  if (!title) {
+    return true
+  }
+
+  const eventTitle = normalizeMatchText(event.title)
+  const targetTitle = normalizeMatchText(title)
+
+  return eventTitle.includes(targetTitle) || targetTitle.includes(eventTitle)
+}
+
+const matchesDeleteDateTime = (event: CalendarEvent, intent: CalendarIntent): boolean => {
+  if (intent.type !== 'delete' || !intent.dateTime) {
+    return true
+  }
+
+  const eventDate = new Date(event.startAt)
+  const targetDate = intent.dateTime.startAt
+  const missesDate = intent.dateTime.missing.includes('date')
+  const missesTime = intent.dateTime.missing.includes('time')
+
+  if (!missesDate && !isSameDay(eventDate, targetDate)) {
+    return false
+  }
+
+  if (!missesTime) {
+    return eventDate.getHours() === targetDate.getHours() && eventDate.getMinutes() === targetDate.getMinutes()
+  }
+
+  return true
+}
+
+const findDeleteCandidates = (intent: CalendarIntent, events: CalendarEvent[]): CalendarEvent[] => {
+  if (intent.type !== 'delete') {
+    return []
+  }
+
+  return events.filter((event) => matchesDeleteTitle(event, intent.title) && matchesDeleteDateTime(event, intent))
+}
+
+const buildDeleteCandidateReply = (intent: CalendarIntent, candidates: CalendarEvent[]): string => {
+  if (intent.type !== 'delete') {
+    return '还没有识别到要删除的日程'
+  }
+
+  if (intent.missing.length > 0) {
+    return '请补充要删除的日程标题或时间'
+  }
+
+  if (candidates.length === 0) {
+    return '没有找到可删除的日程，请换一个标题或时间再试'
+  }
+
+  if (candidates.length > 1) {
+    const preview = candidates.slice(0, 3).map(buildQueryEventLine).join('；')
+    return `找到 ${candidates.length} 个可能的日程：${preview}。请补充更具体的时间或标题后再删除`
+  }
+
+  const [event] = candidates
+  return `找到日程：“${event.title}”，时间 ${formatDateTime(event.startAt)}。请说“确认删除”完成删除，或说“取消”放弃`
+}
+
+const isConfirmDeleteCommand = (commandText: string): boolean => {
+  const text = normalizeMatchText(commandText)
+  return ['确认', '确认删除', '确定', '确定删除', '是的', '删除吧', '删掉吧'].includes(text)
+}
+
+const isCancelDeleteCommand = (commandText: string): boolean => {
+  const text = normalizeMatchText(commandText)
+  return ['取消', '不删了', '先不删', '放弃'].includes(text)
+}
+
+const buildDeleteSuccessReply = (event: CalendarEvent): string => {
+  return `已删除日程：“${event.title}”，时间 ${formatDateTime(event.startAt)}`
+}
+
+const buildDeleteFailureReply = (error: unknown): string => {
+  const reason = error instanceof Error ? error.message : '删除失败'
+  return `删除日程失败：${reason}`
+}
+
+export function VoicePanel({ onCreateEvent, onDeleteEvent, onQueryEvents }: VoicePanelProps) {
   const [draftText, setDraftText] = useState('')
   const [latestCommand, setLatestCommand] = useState('')
   const [intent, setIntent] = useState<CalendarIntent>()
   const [assistantReply, setAssistantReply] = useState('等待语音输入')
   const [queryResults, setQueryResults] = useState<CalendarEvent[]>([])
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete>()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { cancel, isSupported: canSpeak, speak } = useSpeechSynthesis()
 
@@ -141,12 +240,49 @@ export function VoicePanel({ onCreateEvent, onQueryEvents }: VoicePanelProps) {
         return
       }
 
+      if (pendingDelete && isCancelDeleteCommand(normalizedText)) {
+        const cancelReply = '已取消删除操作'
+        setPendingDelete(undefined)
+        setQueryResults([])
+        setLatestCommand(normalizedText)
+        setDraftText(normalizedText)
+        setAssistantReply(cancelReply)
+        speak(cancelReply)
+        return
+      }
+
+      if (pendingDelete && isConfirmDeleteCommand(normalizedText)) {
+        setLatestCommand(normalizedText)
+        setDraftText(normalizedText)
+        setIsSubmitting(true)
+
+        try {
+          const deletedEvent = await onDeleteEvent(pendingDelete.event.id)
+          const successReply = deletedEvent
+            ? buildDeleteSuccessReply(deletedEvent)
+            : '日程已经不存在，无需重复删除'
+          setPendingDelete(undefined)
+          setQueryResults([])
+          setAssistantReply(successReply)
+          speak(successReply)
+        } catch (error) {
+          const failureReply = buildDeleteFailureReply(error)
+          setAssistantReply(failureReply)
+          speak(failureReply)
+        } finally {
+          setIsSubmitting(false)
+        }
+
+        return
+      }
+
       const parsedIntent = parseCalendarIntent(normalizedText)
       const reply = buildIntentSummary(parsedIntent)
       setLatestCommand(normalizedText)
       setDraftText(normalizedText)
       setIntent(parsedIntent)
       setQueryResults([])
+      setPendingDelete(undefined)
 
       if (parsedIntent.type === 'create') {
         const createInput = buildCreateEventInput(parsedIntent, normalizedText)
@@ -184,10 +320,26 @@ export function VoicePanel({ onCreateEvent, onQueryEvents }: VoicePanelProps) {
         return
       }
 
+      if (parsedIntent.type === 'delete') {
+        const scheduledEvents = onQueryEvents({ status: 'scheduled' })
+        const candidates = findDeleteCandidates(parsedIntent, scheduledEvents)
+        const deleteReply = buildDeleteCandidateReply(parsedIntent, candidates)
+
+        setQueryResults(candidates)
+        setAssistantReply(deleteReply)
+
+        if (candidates.length === 1 && parsedIntent.missing.length === 0) {
+          setPendingDelete({ event: candidates[0] })
+        }
+
+        speak(deleteReply)
+        return
+      }
+
       setAssistantReply(reply)
       speak(reply)
     },
-    [onCreateEvent, onQueryEvents, speak],
+    [onCreateEvent, onDeleteEvent, onQueryEvents, pendingDelete, speak],
   )
 
   const {
@@ -283,7 +435,8 @@ export function VoicePanel({ onCreateEvent, onQueryEvents }: VoicePanelProps) {
             ))}
           </ul>
         ) : null}
-        {isSubmitting ? <small>正在创建日程...</small> : null}
+        {pendingDelete ? <small>等待确认删除：说“确认删除”或“取消”</small> : null}
+        {isSubmitting ? <small>{pendingDelete ? '正在删除日程...' : '正在创建日程...'}</small> : null}
         {missingText ? <small>待补充：{missingText}</small> : null}
         {errorMessage ? <small>{errorMessage}</small> : null}
         {!canRecognize ? <small>当前浏览器不支持语音识别，请使用文本输入</small> : null}
