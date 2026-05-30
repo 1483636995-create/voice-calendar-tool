@@ -291,7 +291,8 @@
 .icon-button:focus-visible,
 .primary-icon-button:focus-visible,
 .voice-control-button:focus-visible,
-.command-chip:focus-visible {
+.command-chip:focus-visible,
+.day-cell:focus-visible {
   outline: 3px solid rgba(20, 184, 166, 0.22);
   outline-offset: 2px;
 }
@@ -390,8 +391,11 @@
 
 .day-cell {
   border: 1px solid var(--border);
+  padding: 0;
+  cursor: pointer;
   color: var(--text);
   background: #ffffff;
+  font: inherit;
 }
 
 .empty-day {
@@ -399,11 +403,28 @@
   pointer-events: none;
 }
 
+.day-cell:hover {
+  border-color: var(--border-strong);
+  background: #eef6f8;
+}
+
+.selected-day {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  background: #f0fdfa;
+  font-weight: 800;
+  box-shadow: inset 0 0 0 1px rgba(20, 184, 166, 0.22);
+}
+
 .current-day {
   border-color: var(--accent);
   color: #ffffff;
   background: var(--accent);
   font-weight: 800;
+}
+
+.current-day:hover {
+  background: var(--accent-strong);
 }
 
 .event-list {

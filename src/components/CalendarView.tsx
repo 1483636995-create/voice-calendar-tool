@@ -5,7 +5,9 @@ import { getCalendarMonthDays } from '../lib/calendarGrid'
 interface CalendarViewProps {
   today: Date
   visibleMonth: Date
+  selectedDate: Date
   onVisibleMonthChange: (date: Date) => void
+  onSelectDate: (date: Date) => void
   todayCount: number
   weekCount: number
   totalCount: number
@@ -25,10 +27,28 @@ const getYearOptions = (visibleYear: number): number[] => {
   return Array.from({ length: 11 }, (_, index) => visibleYear - 5 + index)
 }
 
+const isSameCalendarDay = (left: Date, right: Date): boolean => {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  )
+}
+
+const formatDayLabel = (date: Date): string => {
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+}
+
 export function CalendarView({
   today,
   visibleMonth,
+  selectedDate,
   onVisibleMonthChange,
+  onSelectDate,
   todayCount,
   weekCount,
   totalCount,
@@ -153,21 +173,30 @@ export function CalendarView({
           const isCurrentMonth =
             day.getFullYear() === monthStart.getFullYear() && day.getMonth() === monthStart.getMonth()
           const isToday = day.toDateString() === today.toDateString()
+          const isSelected = isSameCalendarDay(day, selectedDate)
           if (!isCurrentMonth) {
             return <span aria-hidden="true" className="day-cell empty-day" key={day.toISOString()} />
           }
 
           const dayClassName = [
             'day-cell',
+            isSelected ? 'selected-day' : '',
             isToday ? 'current-day' : '',
           ]
             .filter(Boolean)
             .join(' ')
 
           return (
-            <span className={dayClassName} key={day.toISOString()}>
+            <button
+              aria-label={`查看${formatDayLabel(day)}日程`}
+              aria-pressed={isSelected}
+              className={dayClassName}
+              key={day.toISOString()}
+              onClick={() => onSelectDate(day)}
+              type="button"
+            >
               {day.getDate()}
-            </span>
+            </button>
           )
         })}
       </div>
