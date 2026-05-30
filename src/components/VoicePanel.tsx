@@ -3,10 +3,11 @@ import { Mic, MicOff, Send, Volume2 } from 'lucide-react'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
 import { useSpeechSynthesis } from '../hooks/useSpeechSynthesis'
 import { parseCalendarIntent, type CalendarIntent } from '../lib/intentParser'
-import type { CalendarEvent, CreateCalendarEventInput } from '../types/calendar'
+import type { CalendarEvent, CreateCalendarEventInput, EventDateRange } from '../types/calendar'
 
 interface VoicePanelProps {
   onCreateEvent: (input: CreateCalendarEventInput) => Promise<CalendarEvent>
+  onQueryEvents: (range?: EventDateRange) => CalendarEvent[]
 }
 
 const quickCommands = ['查看今天安排', '明天下午三点项目会', '播报本周日程']
@@ -86,11 +87,49 @@ const buildCreateFailureReply = (error: unknown): string => {
   return `添加日程失败：${reason}`
 }
 
-export function VoicePanel({ onCreateEvent }: VoicePanelProps) {
+const getQueryLabel = (intent: CalendarIntent): string => {
+  if (intent.type !== 'query') {
+    return '日程'
+  }
+
+  return intent.dateRange?.label ?? '全部日程'
+}
+
+const buildQueryRange = (intent: CalendarIntent): EventDateRange | undefined => {
+  if (intent.type !== 'query') {
+    return undefined
+  }
+
+  return {
+    from: intent.dateRange?.from,
+    to: intent.dateRange?.to,
+    status: 'scheduled',
+  }
+}
+
+const buildQueryEventLine = (event: CalendarEvent, index: number): string => {
+  return `${index + 1}. ${formatDateTime(event.startAt)} ${event.title}`
+}
+
+const buildQueryReply = (intent: CalendarIntent, events: CalendarEvent[]): string => {
+  const label = getQueryLabel(intent)
+
+  if (events.length === 0) {
+    return `${label}没有安排`
+  }
+
+  const visibleEvents = events.slice(0, 3).map(buildQueryEventLine).join('；')
+  const moreText = events.length > 3 ? `；还有 ${events.length - 3} 个日程` : ''
+
+  return `${label}共有 ${events.length} 个日程：${visibleEvents}${moreText}`
+}
+
+export function VoicePanel({ onCreateEvent, onQueryEvents }: VoicePanelProps) {
   const [draftText, setDraftText] = useState('')
   const [latestCommand, setLatestCommand] = useState('')
   const [intent, setIntent] = useState<CalendarIntent>()
   const [assistantReply, setAssistantReply] = useState('等待语音输入')
+  const [queryResults, setQueryResults] = useState<CalendarEvent[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { cancel, isSupported: canSpeak, speak } = useSpeechSynthesis()
 
@@ -107,6 +146,7 @@ export function VoicePanel({ onCreateEvent }: VoicePanelProps) {
       setLatestCommand(normalizedText)
       setDraftText(normalizedText)
       setIntent(parsedIntent)
+      setQueryResults([])
 
       if (parsedIntent.type === 'create') {
         const createInput = buildCreateEventInput(parsedIntent, normalizedText)
@@ -135,10 +175,19 @@ export function VoicePanel({ onCreateEvent }: VoicePanelProps) {
         return
       }
 
+      if (parsedIntent.type === 'query') {
+        const events = onQueryEvents(buildQueryRange(parsedIntent))
+        const queryReply = buildQueryReply(parsedIntent, events)
+        setQueryResults(events)
+        setAssistantReply(queryReply)
+        speak(queryReply)
+        return
+      }
+
       setAssistantReply(reply)
       speak(reply)
     },
-    [onCreateEvent, speak],
+    [onCreateEvent, onQueryEvents, speak],
   )
 
   const {
@@ -224,6 +273,16 @@ export function VoicePanel({ onCreateEvent }: VoicePanelProps) {
       <div className="assistant-reply" aria-live="polite">
         <span>{intent ? intentLabels[intent.type] : '助手回复'}</span>
         <p>{assistantReply}</p>
+        {queryResults.length > 0 ? (
+          <ul className="query-result-list" aria-label="查询结果">
+            {queryResults.slice(0, 4).map((event) => (
+              <li key={event.id}>
+                <strong>{formatDateTime(event.startAt)}</strong>
+                <span>{event.title}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         {isSubmitting ? <small>正在创建日程...</small> : null}
         {missingText ? <small>待补充：{missingText}</small> : null}
         {errorMessage ? <small>{errorMessage}</small> : null}
