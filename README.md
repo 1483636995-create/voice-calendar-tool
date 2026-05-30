@@ -12,12 +12,14 @@ https://1483636995-create.github.io/voice-calendar-tool/
 
 在线演示默认使用浏览器本地存储兜底，无需评委配置密钥或环境变量即可体验新增、查看、删除和提醒流程。
 如需接入公网后端 API，可在 GitHub 仓库变量中配置 `VITE_API_BASE_URL`，值为后端服务的 `/api` 地址，然后重新运行 Pages 部署工作流。
+如果后端启用了 `API_KEY`，还需要配置仓库变量 `VITE_API_KEY`，前端会通过 `x-demo-api-key` 请求头访问 API。
 
 部署方式：
 
 - 前端：GitHub Pages，通过 `.github/workflows/deploy-pages.yml` 自动构建发布。
 - API：Express 后端可按 `render.yaml` 部署到 Render；本地开发仍可使用 `npm run server:dev`。
 - 在线兜底：如果没有配置 `VITE_API_BASE_URL`，线上页面会自动使用 LocalStorage，保证评委直接打开页面也能完整体验核心流程。
+- 公网 API：建议配置 `CORS_ALLOWED_ORIGINS`、`API_KEY` 和持久磁盘；`render.yaml` 已提供对应示例。
 
 ## 项目目标
 
@@ -84,9 +86,21 @@ http://127.0.0.1:4000/api
 - `PATCH /api/events/:eventId`
 - `DELETE /api/events/:eventId`
 
+公网部署安全配置：
+
+```text
+CORS_ALLOWED_ORIGINS=https://1483636995-create.github.io
+API_KEY=<自定义访问密钥>
+EVENT_DATA_FILE=/var/data/events.json
+```
+
+如果配置了 `API_KEY`，前端 Pages 也需要配置同值的仓库变量 `VITE_API_KEY` 并重新部署。
+
 ## 前端数据策略
 
-前端优先通过后端 API 读取和写入日程事件。若后端服务未启动或请求失败，会自动回退到 LocalStorage，保证 Demo 和本地开发时界面仍可使用。
+前端优先通过后端 API 读取和写入日程事件。若后端服务未启动、未配置公网 API 或请求失败，会自动回退到 LocalStorage，保证 Demo 和本地开发时界面仍可使用。
+
+线上演示默认使用 LocalStorage，这意味着日程数据只保存在当前浏览器，不会上传到服务器，也不会被其他评委看到。若启用公网后端，应配置 API Key、CORS 白名单和持久化存储。
 
 ## 开发记录
 

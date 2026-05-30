@@ -2,16 +2,21 @@ import { z } from 'zod'
 
 export const eventStatusSchema = z.enum(['scheduled', 'completed', 'cancelled'])
 
+const TITLE_MAX_LENGTH = 80
+const OPTIONAL_TEXT_MAX_LENGTH = 500
+
 const dateStringSchema = z.string().trim().min(1).refine(
   (value) => !Number.isNaN(new Date(value).getTime()),
   'must be a valid date string',
 )
 
-const optionalTextSchema = z.string().trim().optional()
+const titleSchema = z.string().trim().min(1, 'title is required').max(TITLE_MAX_LENGTH)
+const optionalTextSchema = z.string().trim().max(OPTIONAL_TEXT_MAX_LENGTH).optional()
+const nullableOptionalTextSchema = z.string().trim().max(OPTIONAL_TEXT_MAX_LENGTH).nullable().optional()
 
 export const createEventSchema = z
   .object({
-    title: z.string().trim().min(1, 'title is required'),
+    title: titleSchema,
     startAt: dateStringSchema,
     endAt: dateStringSchema.optional(),
     reminderMinutesBefore: z.number().int().nonnegative().optional(),
@@ -23,12 +28,12 @@ export const createEventSchema = z
 
 export const updateEventSchema = z
   .object({
-    title: z.string().trim().min(1, 'title cannot be empty').optional(),
+    title: titleSchema.optional(),
     startAt: dateStringSchema.optional(),
     endAt: dateStringSchema.nullable().optional(),
     reminderMinutesBefore: z.number().int().nonnegative().nullable().optional(),
-    note: z.string().trim().nullable().optional(),
-    sourceText: z.string().trim().nullable().optional(),
+    note: nullableOptionalTextSchema,
+    sourceText: nullableOptionalTextSchema,
     status: eventStatusSchema.optional(),
   })
   .strict()

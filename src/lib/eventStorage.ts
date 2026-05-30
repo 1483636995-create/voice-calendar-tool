@@ -12,6 +12,8 @@ export const EVENT_STORAGE_KEY = 'voice-calendar-tool:events'
 type EventStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 
 const DEFAULT_EVENT_STATUS: CalendarEventStatus = 'scheduled'
+const TITLE_MAX_LENGTH = 80
+const OPTIONAL_TEXT_MAX_LENGTH = 500
 
 const getBrowserStorage = (): EventStorage | undefined => {
   if (typeof window === 'undefined') {
@@ -49,6 +51,10 @@ const normalizeTitle = (title: string): string => {
     throw new Error('event title cannot be empty')
   }
 
+  if (normalizedTitle.length > TITLE_MAX_LENGTH) {
+    throw new Error(`event title cannot be longer than ${TITLE_MAX_LENGTH} characters`)
+  }
+
   return normalizedTitle
 }
 
@@ -58,6 +64,11 @@ const normalizeOptionalText = (value: string | null | undefined): string | undef
   }
 
   const normalizedValue = value.trim()
+
+  if (normalizedValue.length > OPTIONAL_TEXT_MAX_LENGTH) {
+    throw new Error(`event text cannot be longer than ${OPTIONAL_TEXT_MAX_LENGTH} characters`)
+  }
+
   return normalizedValue || undefined
 }
 
