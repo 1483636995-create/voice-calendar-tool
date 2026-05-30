@@ -21,7 +21,7 @@ interface UseEventRemindersResult {
   requestNotificationPermission: () => Promise<void>
 }
 
-const DEFAULT_REMINDER_MINUTES = 0
+const DEFAULT_REMINDER_MINUTES = 30
 const UPCOMING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
 const DUE_GRACE_MS = 10 * 60 * 1000
 const CLOCK_TICK_MS = 30 * 1000
