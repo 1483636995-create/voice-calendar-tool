@@ -38,7 +38,6 @@ function App() {
   const today = useMemo(() => new Date(), [])
   const todayEvents = queryEvents({ from: getStartOfDay(today), to: getEndOfDay(today) })
   const weekEvents = queryEvents({ from: getStartOfWeek(today), to: getEndOfWeek(today) })
-  const upcomingEvents = scheduledEvents.slice(0, 4)
   const statusLabel = isLoading
     ? '正在同步日程'
     : dataSource === 'api'
@@ -67,7 +66,7 @@ function App() {
           totalCount={events.length}
         />
         <EventList title="今日日程" events={todayEvents} emptyLabel="今天还没有安排" />
-        <ReminderCenter events={upcomingEvents} />
+        <ReminderCenter events={scheduledEvents} />
       </section>
     </main>
   )
