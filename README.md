@@ -2,6 +2,23 @@
 
 语音版日历工具，面向日常日程管理场景，目标是让用户通过自然语言语音完成事件添加、查看、删除和提醒管理。
 
+## 在线演示与部署
+
+前端 GitHub Pages 地址：
+
+```text
+https://1483636995-create.github.io/voice-calendar-tool/
+```
+
+在线演示默认使用浏览器本地存储兜底，无需评委配置密钥或环境变量即可体验新增、查看、删除和提醒流程。
+如需接入公网后端 API，可在 GitHub 仓库变量中配置 `VITE_API_BASE_URL`，值为后端服务的 `/api` 地址，然后重新运行 Pages 部署工作流。
+
+部署方式：
+
+- 前端：GitHub Pages，通过 `.github/workflows/deploy-pages.yml` 自动构建发布。
+- API：Express 后端可按 `render.yaml` 部署到 Render；本地开发仍可使用 `npm run server:dev`。
+- 在线兜底：如果没有配置 `VITE_API_BASE_URL`，线上页面会自动使用 LocalStorage，保证评委直接打开页面也能完整体验核心流程。
+
 ## 项目目标
 
 - 用语音作为核心入口，减少手动填写日历的步骤。
@@ -89,6 +106,7 @@ http://127.0.0.1:4000/api
 - PR 10：语音查看日程闭环。
 - PR 11：语音删除日程闭环。
 - PR 12：提醒中心与浏览器通知。
+- PR 13：GitHub Pages 部署配置。
 
 ## Demo
 

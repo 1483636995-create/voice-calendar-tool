@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: voice-calendar-api
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run server:build
+    startCommand: npm run server:start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
