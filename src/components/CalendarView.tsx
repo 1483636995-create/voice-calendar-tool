@@ -1,4 +1,5 @@
 import { CalendarDays } from 'lucide-react'
+import { getCalendarMonthDays } from '../lib/calendarGrid'
 
 interface CalendarViewProps {
   today: Date
@@ -9,21 +10,8 @@ interface CalendarViewProps {
 
 const weekdayNames = ['日', '一', '二', '三', '四', '五', '六']
 
-const getMonthDays = (date: Date): Date[] => {
-  const firstDay = new Date(date.getFullYear(), date.getMonth(), 1)
-  const startOffset = firstDay.getDay()
-  const start = new Date(firstDay)
-  start.setDate(firstDay.getDate() - startOffset)
-
-  return Array.from({ length: 35 }, (_, index) => {
-    const day = new Date(start)
-    day.setDate(start.getDate() + index)
-    return day
-  })
-}
-
 export function CalendarView({ today, todayCount, weekCount, totalCount }: CalendarViewProps) {
-  const days = getMonthDays(today)
+  const days = getCalendarMonthDays(today)
   const monthLabel = today.toLocaleDateString('zh-CN', {
     month: 'long',
     year: 'numeric',
@@ -61,11 +49,15 @@ export function CalendarView({ today, todayCount, weekCount, totalCount }: Calen
           </span>
         ))}
         {days.map((day) => {
-          const isCurrentMonth = day.getMonth() === today.getMonth()
+          const isCurrentMonth =
+            day.getFullYear() === today.getFullYear() && day.getMonth() === today.getMonth()
           const isToday = day.toDateString() === today.toDateString()
+          if (!isCurrentMonth) {
+            return <span aria-hidden="true" className="day-cell empty-day" key={day.toISOString()} />
+          }
+
           const dayClassName = [
             'day-cell',
-            isCurrentMonth ? '' : 'muted-day',
             isToday ? 'current-day' : '',
           ]
             .filter(Boolean)
