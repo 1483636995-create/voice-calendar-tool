@@ -49,11 +49,15 @@ export function CalendarView({ today, todayCount, weekCount, totalCount }: Calen
           </span>
         ))}
         {days.map((day) => {
-          const isCurrentMonth = day.getMonth() === today.getMonth()
+          const isCurrentMonth =
+            day.getFullYear() === today.getFullYear() && day.getMonth() === today.getMonth()
           const isToday = day.toDateString() === today.toDateString()
+          if (!isCurrentMonth) {
+            return <span aria-hidden="true" className="day-cell empty-day" key={day.toISOString()} />
+          }
+
           const dayClassName = [
             'day-cell',
-            isCurrentMonth ? '' : 'muted-day',
             isToday ? 'current-day' : '',
           ]
             .filter(Boolean)
