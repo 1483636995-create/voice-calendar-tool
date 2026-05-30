@@ -1,4 +1,5 @@
 import { CalendarDays } from 'lucide-react'
+import { getCalendarMonthDays } from '../lib/calendarGrid'
 
 interface CalendarViewProps {
   today: Date
@@ -9,21 +10,8 @@ interface CalendarViewProps {
 
 const weekdayNames = ['日', '一', '二', '三', '四', '五', '六']
 
-const getMonthDays = (date: Date): Date[] => {
-  const firstDay = new Date(date.getFullYear(), date.getMonth(), 1)
-  const startOffset = firstDay.getDay()
-  const start = new Date(firstDay)
-  start.setDate(firstDay.getDate() - startOffset)
-
-  return Array.from({ length: 35 }, (_, index) => {
-    const day = new Date(start)
-    day.setDate(start.getDate() + index)
-    return day
-  })
-}
-
 export function CalendarView({ today, todayCount, weekCount, totalCount }: CalendarViewProps) {
-  const days = getMonthDays(today)
+  const days = getCalendarMonthDays(today)
   const monthLabel = today.toLocaleDateString('zh-CN', {
     month: 'long',
     year: 'numeric',
