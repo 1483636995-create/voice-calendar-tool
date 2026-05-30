@@ -221,6 +221,36 @@
   line-height: 1.4;
 }
 
+.query-result-list {
+  display: grid;
+  gap: 6px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.query-result-list li {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.query-result-list strong {
+  color: var(--accent-strong);
+  font-weight: 800;
+}
+
+.query-result-list span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--heading);
+}
+
 .command-row {
   display: flex;
   flex-wrap: wrap;

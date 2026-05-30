@@ -58,7 +58,7 @@ function App() {
       </header>
 
       <section className="dashboard-grid" aria-label="语音日历工作台">
-        <VoicePanel onCreateEvent={addEvent} />
+        <VoicePanel onCreateEvent={addEvent} onQueryEvents={queryEvents} />
         <CalendarView
           today={today}
           todayCount={todayEvents.length}
