@@ -3,6 +3,11 @@ import { Mic, MicOff, Send, Volume2 } from 'lucide-react'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
 import { useSpeechSynthesis } from '../hooks/useSpeechSynthesis'
 import { parseCalendarIntent, type CalendarIntent } from '../lib/intentParser'
+import type { CalendarEvent, CreateCalendarEventInput } from '../types/calendar'
+
+interface VoicePanelProps {
+  onCreateEvent: (input: CreateCalendarEventInput) => Promise<CalendarEvent>
+}
 
 const quickCommands = ['查看今天安排', '明天下午三点项目会', '播报本周日程']
 
@@ -21,8 +26,8 @@ const missingLabels: Record<string, string> = {
   newTime: '新时间',
 }
 
-const formatDateTime = (value: Date): string => {
-  return value.toLocaleString('zh-CN', {
+const formatDateTime = (value: Date | string): string => {
+  return new Date(value).toLocaleString('zh-CN', {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
@@ -55,15 +60,42 @@ const buildIntentSummary = (intent: CalendarIntent): string => {
   return '还没有识别到明确的日历指令'
 }
 
-export function VoicePanel() {
+const buildCreateEventInput = (
+  intent: CalendarIntent,
+  commandText: string,
+): CreateCalendarEventInput | undefined => {
+  if (intent.type !== 'create' || !intent.title || !intent.dateTime || intent.missing.length > 0) {
+    return undefined
+  }
+
+  return {
+    title: intent.title,
+    startAt: intent.dateTime.startAt,
+    reminderMinutesBefore: intent.reminderMinutesBefore,
+    sourceText: commandText,
+    status: 'scheduled',
+  }
+}
+
+const buildCreateSuccessReply = (event: CalendarEvent): string => {
+  return `已添加日程：“${event.title}”，时间 ${formatDateTime(event.startAt)}`
+}
+
+const buildCreateFailureReply = (error: unknown): string => {
+  const reason = error instanceof Error ? error.message : '创建失败'
+  return `添加日程失败：${reason}`
+}
+
+export function VoicePanel({ onCreateEvent }: VoicePanelProps) {
   const [draftText, setDraftText] = useState('')
   const [latestCommand, setLatestCommand] = useState('')
   const [intent, setIntent] = useState<CalendarIntent>()
   const [assistantReply, setAssistantReply] = useState('等待语音输入')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const { cancel, isSupported: canSpeak, speak } = useSpeechSynthesis()
 
   const handleCommand = useCallback(
-    (commandText: string) => {
+    async (commandText: string) => {
       const normalizedText = commandText.trim()
 
       if (!normalizedText) {
@@ -75,10 +107,38 @@ export function VoicePanel() {
       setLatestCommand(normalizedText)
       setDraftText(normalizedText)
       setIntent(parsedIntent)
+
+      if (parsedIntent.type === 'create') {
+        const createInput = buildCreateEventInput(parsedIntent, normalizedText)
+
+        if (!createInput) {
+          setAssistantReply(reply)
+          speak(reply)
+          return
+        }
+
+        setIsSubmitting(true)
+
+        try {
+          const createdEvent = await onCreateEvent(createInput)
+          const successReply = buildCreateSuccessReply(createdEvent)
+          setAssistantReply(successReply)
+          speak(successReply)
+        } catch (error) {
+          const failureReply = buildCreateFailureReply(error)
+          setAssistantReply(failureReply)
+          speak(failureReply)
+        } finally {
+          setIsSubmitting(false)
+        }
+
+        return
+      }
+
       setAssistantReply(reply)
       speak(reply)
     },
-    [speak],
+    [onCreateEvent, speak],
   )
 
   const {
@@ -89,7 +149,7 @@ export function VoicePanel() {
     startListening,
     stopListening,
     transcript,
-  } = useSpeechRecognition({ onFinalResult: handleCommand })
+  } = useSpeechRecognition({ onFinalResult: (text) => void handleCommand(text) })
 
   const shownTranscript = interimTranscript || transcript || latestCommand || '等待语音输入'
   const missingText = useMemo(() => {
@@ -102,11 +162,11 @@ export function VoicePanel() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    handleCommand(draftText)
+    void handleCommand(draftText)
   }
 
   const handleQuickCommand = (command: string) => {
-    handleCommand(command)
+    void handleCommand(command)
   }
 
   const toggleListening = () => {
@@ -128,7 +188,7 @@ export function VoicePanel() {
   }
 
   return (
-    <section className="voice-panel" aria-labelledby="voice-panel-title">
+    <section className="voice-panel" aria-labelledby="voice-panel-title" aria-busy={isSubmitting}>
       <div className="panel-heading">
         <div>
           <p className="eyebrow">Voice Input</p>
@@ -151,7 +211,7 @@ export function VoicePanel() {
         aria-label={isListening ? '停止语音输入' : '开始语音输入'}
         aria-pressed={isListening}
         onClick={toggleListening}
-        disabled={!canRecognize}
+        disabled={!canRecognize || isSubmitting}
       >
         {isListening ? <MicOff size={34} strokeWidth={2.1} /> : <Mic size={34} strokeWidth={2.1} />}
       </button>
@@ -164,6 +224,7 @@ export function VoicePanel() {
       <div className="assistant-reply" aria-live="polite">
         <span>{intent ? intentLabels[intent.type] : '助手回复'}</span>
         <p>{assistantReply}</p>
+        {isSubmitting ? <small>正在创建日程...</small> : null}
         {missingText ? <small>待补充：{missingText}</small> : null}
         {errorMessage ? <small>{errorMessage}</small> : null}
         {!canRecognize ? <small>当前浏览器不支持语音识别，请使用文本输入</small> : null}
@@ -175,6 +236,7 @@ export function VoicePanel() {
             className="command-chip"
             type="button"
             key={command}
+            disabled={isSubmitting}
             onClick={() => handleQuickCommand(command)}
           >
             {command}
@@ -187,9 +249,10 @@ export function VoicePanel() {
           aria-label="文本指令"
           placeholder="输入一条日程指令"
           value={draftText}
+          disabled={isSubmitting}
           onChange={(event) => setDraftText(event.target.value)}
         />
-        <button className="primary-icon-button" type="submit" aria-label="发送文本指令">
+        <button className="primary-icon-button" type="submit" aria-label="发送文本指令" disabled={isSubmitting}>
           <Send size={18} strokeWidth={2.4} />
         </button>
       </form>

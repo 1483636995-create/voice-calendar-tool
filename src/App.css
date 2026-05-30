@@ -139,7 +139,9 @@
 
 .icon-button:disabled,
 .primary-icon-button:disabled,
-.voice-control-button:disabled {
+.voice-control-button:disabled,
+.command-chip:disabled,
+.input-row input:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
