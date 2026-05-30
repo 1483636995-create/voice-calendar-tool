@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import './App.css'
 import { CalendarView } from './components/CalendarView'
 import { EventList } from './components/EventList'
@@ -36,6 +36,7 @@ function App() {
   const { addEvent, dataSource, deleteEvent, errorMessage, events, isLoading, queryEvents, scheduledEvents } =
     useEvents()
   const today = useMemo(() => new Date(), [])
+  const [visibleMonth, setVisibleMonth] = useState(() => new Date())
   const todayEvents = queryEvents({ from: getStartOfDay(today), to: getEndOfDay(today) })
   const weekEvents = queryEvents({ from: getStartOfWeek(today), to: getEndOfWeek(today) })
   const statusLabel = isLoading
@@ -61,6 +62,8 @@ function App() {
         <VoicePanel onCreateEvent={addEvent} onDeleteEvent={deleteEvent} onQueryEvents={queryEvents} />
         <CalendarView
           today={today}
+          visibleMonth={visibleMonth}
+          onVisibleMonthChange={setVisibleMonth}
           todayCount={todayEvents.length}
           weekCount={weekEvents.length}
           totalCount={events.length}

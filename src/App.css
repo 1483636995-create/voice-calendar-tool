@@ -287,6 +287,7 @@
 }
 
 .input-row input:focus,
+.calendar-select:focus,
 .icon-button:focus-visible,
 .primary-icon-button:focus-visible,
 .voice-control-button:focus-visible,
@@ -308,6 +309,40 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
+}
+
+.calendar-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.calendar-select-group {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 180px;
+  gap: 8px;
+}
+
+.calendar-select {
+  min-width: 0;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 10px;
+  color: var(--heading);
+  background: #ffffff;
+  font: inherit;
+  font-size: 14px;
+}
+
+.year-select {
+  flex: 1.1 1 92px;
+}
+
+.month-select {
+  flex: 0.9 1 76px;
 }
 
 .metric-grid div {
