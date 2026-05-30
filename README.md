@@ -123,6 +123,7 @@ EVENT_DATA_FILE=/var/data/events.json
 - PR 13：GitHub Pages 部署配置。
 - PR 14：补充 GitHub Pages 部署配置并确认线上访问。
 - PR 15：修复默认提醒与部署安全风险。
+- PR 16：支持选择年份和月份查看月历。
 
 ## Demo
 
