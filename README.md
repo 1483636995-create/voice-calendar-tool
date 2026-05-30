@@ -121,6 +121,8 @@ EVENT_DATA_FILE=/var/data/events.json
 - PR 11：语音删除日程闭环。
 - PR 12：提醒中心与浏览器通知。
 - PR 13：GitHub Pages 部署配置。
+- PR 14：补充 GitHub Pages 部署配置并确认线上访问。
+- PR 15：修复默认提醒与部署安全风险。
 
 ## Demo
 
