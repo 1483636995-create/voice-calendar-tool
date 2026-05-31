@@ -580,6 +580,7 @@ export function VoicePanel({ onCreateEvent, onDeleteEvent, onQueryEvents }: Voic
       return
     }
 
+    cancel()
     startListening()
   }
 
