@@ -574,6 +574,37 @@
   white-space: nowrap;
 }
 
+.event-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cancel-event-button {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px;
+  border-color: #fecaca;
+  color: #991b1b;
+  background: #fff7f7;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.cancel-event-button:hover:not(:disabled) {
+  border-color: #fca5a5;
+  background: #fee2e2;
+}
+
+.event-body .event-action-error {
+  color: #991b1b;
+  font-weight: 700;
+}
+
 .status-scheduled {
   color: #075985;
   background: #e0f2fe;
@@ -632,6 +663,10 @@
   .event-card {
     grid-template-columns: 1fr;
     gap: 8px;
+  }
+
+  .event-actions {
+    justify-content: flex-start;
   }
 
   .event-status {
