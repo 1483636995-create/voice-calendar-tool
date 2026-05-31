@@ -128,6 +128,7 @@ EVENT_DATA_FILE=/var/data/events.json
 - PR 18：支持点击日期查看当天日程。
 - PR 19：同步 README 开发进度至 PR18。
 - PR 20：新增日程时检测时间冲突。
+- PR 21：在日历中标记有日程的日期。
 
 ## Demo
 
