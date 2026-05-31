@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState, type FormEvent } from 'react'
 import { Mic, MicOff, Send, Volume2 } from 'lucide-react'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
 import { useSpeechSynthesis } from '../hooks/useSpeechSynthesis'
-import { parseCalendarIntent, type CalendarIntent } from '../lib/intentParser'
+import { parseCalendarIntent, type CalendarIntent, type CreateEventIntent } from '../lib/intentParser'
 import type { CalendarEvent, CreateCalendarEventInput, EventDateRange } from '../types/calendar'
 
 interface VoicePanelProps {
@@ -20,6 +20,11 @@ interface PendingDelete {
 interface PendingCreate {
   input: CreateCalendarEventInput
   conflicts: CalendarEvent[]
+}
+
+interface PendingCreateClarification {
+  commandText: string
+  intent: CreateEventIntent
 }
 
 const DEFAULT_EVENT_DURATION_MS = 30 * 60 * 1000
@@ -99,6 +104,27 @@ const buildCreateFailureReply = (error: unknown): string => {
   return `添加日程失败：${reason}`
 }
 
+const buildCreateClarificationReply = (intent: CreateEventIntent): string => {
+  const needsTitle = intent.missing.includes('title')
+  const needsTime = intent.missing.includes('time')
+
+  if (needsTitle && needsTime) {
+    return '我还需要日程标题和具体时间，比如“项目会，明天下午三点”'
+  }
+
+  if (needsTitle) {
+    const timeText = intent.dateTime ? formatDateTime(intent.dateTime.startAt) : '这个时间'
+    return `请补充 ${timeText} 的日程标题`
+  }
+
+  if (needsTime) {
+    const titleText = intent.title ? `“${intent.title}”` : '这个日程'
+    return `请补充${titleText}的具体时间，比如“三点”或“明天下午三点”`
+  }
+
+  return '请继续补充日程信息'
+}
+
 const getEventStartTime = (event: CalendarEvent | CreateCalendarEventInput): number => {
   return new Date(event.startAt).getTime()
 }
@@ -134,6 +160,55 @@ const buildCreateConflictReply = (conflicts: CalendarEvent[]): string => {
   const preview = conflicts.slice(0, 3).map(buildQueryEventLine).join('；')
   const moreText = conflicts.length > 3 ? `；还有 ${conflicts.length - 3} 个冲突日程` : ''
   return `该时段已有安排：${preview}${moreText}。请说“确认添加”继续添加，或说“取消”放弃`
+}
+
+const getCreateIntentScore = (intent: CreateEventIntent): number => {
+  return Number(Boolean(intent.title)) + Number(Boolean(intent.dateTime)) + (2 - intent.missing.length)
+}
+
+const getClarifiedCreateIntent = (
+  pendingClarification: PendingCreateClarification,
+  nextText: string,
+): PendingCreateClarification => {
+  const candidateTexts = [
+    `${pendingClarification.commandText} ${nextText}`,
+    `${nextText} ${pendingClarification.commandText}`,
+    [
+      pendingClarification.intent.dateTime?.matchedText,
+      nextText,
+      pendingClarification.intent.title,
+    ].filter(Boolean).join(' '),
+    [
+      pendingClarification.intent.title,
+      pendingClarification.intent.dateTime?.matchedText,
+      nextText,
+    ].filter(Boolean).join(' '),
+  ].filter((value, index, values) => value.trim() && values.indexOf(value) === index)
+
+  const candidates = candidateTexts
+    .map((commandText) => {
+      const intent = parseCalendarIntent(commandText)
+      return intent.type === 'create' ? { commandText, intent } : undefined
+    })
+    .filter((candidate): candidate is PendingCreateClarification => Boolean(candidate))
+
+  return candidates.reduce<PendingCreateClarification>(
+    (bestCandidate, candidate) => {
+      const candidateScore = getCreateIntentScore(candidate.intent)
+      const bestScore = getCreateIntentScore(bestCandidate.intent)
+
+      if (candidate.intent.missing.length < bestCandidate.intent.missing.length) {
+        return candidate
+      }
+
+      if (candidate.intent.missing.length === bestCandidate.intent.missing.length && candidateScore > bestScore) {
+        return candidate
+      }
+
+      return bestCandidate
+    },
+    pendingClarification,
+  )
 }
 
 const getQueryLabel = (intent: CalendarIntent): string => {
@@ -283,6 +358,7 @@ export function VoicePanel({ onCreateEvent, onDeleteEvent, onQueryEvents }: Voic
   const [assistantReply, setAssistantReply] = useState('等待语音输入')
   const [queryResults, setQueryResults] = useState<CalendarEvent[]>([])
   const [pendingCreate, setPendingCreate] = useState<PendingCreate>()
+  const [pendingCreateClarification, setPendingCreateClarification] = useState<PendingCreateClarification>()
   const [pendingDelete, setPendingDelete] = useState<PendingDelete>()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { cancel, isSupported: canSpeak, speak } = useSpeechSynthesis()
@@ -292,6 +368,17 @@ export function VoicePanel({ onCreateEvent, onDeleteEvent, onQueryEvents }: Voic
       const normalizedText = commandText.trim()
 
       if (!normalizedText) {
+        return
+      }
+
+      if (pendingCreateClarification && isCancelCreateCommand(normalizedText)) {
+        const cancelReply = '已取消添加操作'
+        setPendingCreateClarification(undefined)
+        setQueryResults([])
+        setLatestCommand(normalizedText)
+        setDraftText(normalizedText)
+        setAssistantReply(cancelReply)
+        speak(cancelReply)
         return
       }
 
@@ -365,21 +452,28 @@ export function VoicePanel({ onCreateEvent, onDeleteEvent, onQueryEvents }: Voic
         return
       }
 
-      const parsedIntent = parseCalendarIntent(normalizedText)
+      const clarifiedCreate = pendingCreateClarification
+        ? getClarifiedCreateIntent(pendingCreateClarification, normalizedText)
+        : undefined
+      const parsedIntent = clarifiedCreate?.intent ?? parseCalendarIntent(normalizedText)
+      const commandForIntent = clarifiedCreate?.commandText ?? normalizedText
       const reply = buildIntentSummary(parsedIntent)
-      setLatestCommand(normalizedText)
-      setDraftText(normalizedText)
+      setLatestCommand(commandForIntent)
+      setDraftText(commandForIntent)
       setIntent(parsedIntent)
       setQueryResults([])
       setPendingCreate(undefined)
+      setPendingCreateClarification(undefined)
       setPendingDelete(undefined)
 
       if (parsedIntent.type === 'create') {
-        const createInput = buildCreateEventInput(parsedIntent, normalizedText)
+        const createInput = buildCreateEventInput(parsedIntent, commandForIntent)
 
         if (!createInput) {
-          setAssistantReply(reply)
-          speak(reply)
+          const clarificationReply = buildCreateClarificationReply(parsedIntent)
+          setPendingCreateClarification({ commandText: commandForIntent, intent: parsedIntent })
+          setAssistantReply(clarificationReply)
+          speak(clarificationReply)
           return
         }
 
@@ -441,7 +535,15 @@ export function VoicePanel({ onCreateEvent, onDeleteEvent, onQueryEvents }: Voic
       setAssistantReply(reply)
       speak(reply)
     },
-    [onCreateEvent, onDeleteEvent, onQueryEvents, pendingCreate, pendingDelete, speak],
+    [
+      onCreateEvent,
+      onDeleteEvent,
+      onQueryEvents,
+      pendingCreate,
+      pendingCreateClarification,
+      pendingDelete,
+      speak,
+    ],
   )
 
   const {
@@ -539,6 +641,9 @@ export function VoicePanel({ onCreateEvent, onDeleteEvent, onQueryEvents }: Voic
         ) : null}
         {pendingCreate ? (
           <small>等待确认添加：说“确认添加”继续，或说“取消”放弃</small>
+        ) : null}
+        {pendingCreateClarification ? (
+          <small>等待补充信息：可以继续说标题或具体时间，或说“取消”放弃</small>
         ) : null}
         {pendingDelete ? <small>等待确认删除：说“确认删除”或“取消”</small> : null}
         {isSubmitting ? <small>{pendingDelete ? '正在删除日程...' : '正在创建日程...'}</small> : null}
