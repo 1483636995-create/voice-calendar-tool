@@ -390,12 +390,33 @@
 }
 
 .day-cell {
+  grid-template-rows: 1fr auto;
   border: 1px solid var(--border);
-  padding: 0;
+  padding: 8px 0 7px;
   cursor: pointer;
   color: var(--text);
   background: #ffffff;
   font: inherit;
+}
+
+.day-number {
+  display: grid;
+  min-height: 18px;
+  place-items: center;
+}
+
+.day-marker {
+  display: inline-grid;
+  min-width: 16px;
+  height: 16px;
+  place-items: center;
+  border-radius: 999px;
+  padding: 0 4px;
+  color: #ffffff;
+  background: var(--accent);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .empty-day {
@@ -421,6 +442,11 @@
   color: #ffffff;
   background: var(--accent);
   font-weight: 800;
+}
+
+.current-day .day-marker {
+  color: var(--accent-strong);
+  background: #ffffff;
 }
 
 .current-day:hover {

@@ -1,8 +1,10 @@
 import type { ChangeEvent } from 'react'
 import { CalendarDays, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
 import { getCalendarMonthDays } from '../lib/calendarGrid'
+import type { CalendarEvent } from '../types/calendar'
 
 interface CalendarViewProps {
+  events: CalendarEvent[]
   today: Date
   visibleMonth: Date
   selectedDate: Date
@@ -43,7 +45,25 @@ const formatDayLabel = (date: Date): string => {
   })
 }
 
+const getDateKey = (date: Date): string => {
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
+}
+
+const getEventDayCounts = (events: CalendarEvent[]): Map<string, number> => {
+  return events.reduce((counts, event) => {
+    if (event.status === 'cancelled') {
+      return counts
+    }
+
+    const eventDate = new Date(event.startAt)
+    const dateKey = getDateKey(eventDate)
+    counts.set(dateKey, (counts.get(dateKey) ?? 0) + 1)
+    return counts
+  }, new Map<string, number>())
+}
+
 export function CalendarView({
+  events,
   today,
   visibleMonth,
   selectedDate,
@@ -61,6 +81,7 @@ export function CalendarView({
   })
   const yearOptions = getYearOptions(monthStart.getFullYear())
   const todayMonth = getMonthStart(today)
+  const eventDayCounts = getEventDayCounts(events)
 
   const changeVisibleMonth = (year: number, month: number) => {
     onVisibleMonthChange(new Date(year, month, 1))
@@ -174,6 +195,7 @@ export function CalendarView({
             day.getFullYear() === monthStart.getFullYear() && day.getMonth() === monthStart.getMonth()
           const isToday = day.toDateString() === today.toDateString()
           const isSelected = isSameCalendarDay(day, selectedDate)
+          const eventCount = eventDayCounts.get(getDateKey(day)) ?? 0
           if (!isCurrentMonth) {
             return <span aria-hidden="true" className="day-cell empty-day" key={day.toISOString()} />
           }
@@ -188,14 +210,19 @@ export function CalendarView({
 
           return (
             <button
-              aria-label={`查看${formatDayLabel(day)}日程`}
+              aria-label={`查看${formatDayLabel(day)}日程${eventCount > 0 ? `，有 ${eventCount} 个日程` : ''}`}
               aria-pressed={isSelected}
               className={dayClassName}
               key={day.toISOString()}
               onClick={() => onSelectDate(day)}
               type="button"
             >
-              {day.getDate()}
+              <span className="day-number">{day.getDate()}</span>
+              {eventCount > 0 ? (
+                <span className="day-marker" aria-hidden="true">
+                  {eventCount > 9 ? '9+' : eventCount}
+                </span>
+              ) : null}
             </button>
           )
         })}

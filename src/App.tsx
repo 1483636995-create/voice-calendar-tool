@@ -93,6 +93,7 @@ function App() {
       <section className="dashboard-grid" aria-label="语音日历工作台">
         <VoicePanel onCreateEvent={addEvent} onDeleteEvent={deleteEvent} onQueryEvents={queryEvents} />
         <CalendarView
+          events={events}
           today={today}
           visibleMonth={visibleMonth}
           selectedDate={selectedDate}
