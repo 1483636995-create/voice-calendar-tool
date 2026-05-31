@@ -17,6 +17,13 @@ interface PendingDelete {
   event: CalendarEvent
 }
 
+interface PendingCreate {
+  input: CreateCalendarEventInput
+  conflicts: CalendarEvent[]
+}
+
+const DEFAULT_EVENT_DURATION_MS = 30 * 60 * 1000
+
 const intentLabels: Record<CalendarIntent['type'], string> = {
   create: '添加日程',
   query: '查看日程',
@@ -90,6 +97,43 @@ const buildCreateSuccessReply = (event: CalendarEvent): string => {
 const buildCreateFailureReply = (error: unknown): string => {
   const reason = error instanceof Error ? error.message : '创建失败'
   return `添加日程失败：${reason}`
+}
+
+const getEventStartTime = (event: CalendarEvent | CreateCalendarEventInput): number => {
+  return new Date(event.startAt).getTime()
+}
+
+const getEventEndTime = (event: CalendarEvent | CreateCalendarEventInput): number => {
+  if (event.endAt) {
+    return new Date(event.endAt).getTime()
+  }
+
+  return getEventStartTime(event) + DEFAULT_EVENT_DURATION_MS
+}
+
+const hasTimeOverlap = (
+  nextEvent: CreateCalendarEventInput,
+  existingEvent: CalendarEvent,
+): boolean => {
+  const nextStart = getEventStartTime(nextEvent)
+  const nextEnd = getEventEndTime(nextEvent)
+  const existingStart = getEventStartTime(existingEvent)
+  const existingEnd = getEventEndTime(existingEvent)
+
+  return nextStart < existingEnd && nextEnd > existingStart
+}
+
+const findCreateConflicts = (
+  input: CreateCalendarEventInput,
+  events: CalendarEvent[],
+): CalendarEvent[] => {
+  return events.filter((event) => event.status === 'scheduled' && hasTimeOverlap(input, event))
+}
+
+const buildCreateConflictReply = (conflicts: CalendarEvent[]): string => {
+  const preview = conflicts.slice(0, 3).map(buildQueryEventLine).join('；')
+  const moreText = conflicts.length > 3 ? `；还有 ${conflicts.length - 3} 个冲突日程` : ''
+  return `该时段已有安排：${preview}${moreText}。请说“确认添加”继续添加，或说“取消”放弃`
 }
 
 const getQueryLabel = (intent: CalendarIntent): string => {
@@ -208,9 +252,19 @@ const isConfirmDeleteCommand = (commandText: string): boolean => {
   return ['确认', '确认删除', '确定', '确定删除', '是的', '删除吧', '删掉吧'].includes(text)
 }
 
+const isConfirmCreateCommand = (commandText: string): boolean => {
+  const text = normalizeMatchText(commandText)
+  return ['确认', '确认添加', '确定', '确定添加', '继续添加', '仍然添加', '添加吧', '是的'].includes(text)
+}
+
 const isCancelDeleteCommand = (commandText: string): boolean => {
   const text = normalizeMatchText(commandText)
   return ['取消', '不删了', '先不删', '放弃'].includes(text)
+}
+
+const isCancelCreateCommand = (commandText: string): boolean => {
+  const text = normalizeMatchText(commandText)
+  return ['取消', '不加了', '先不加', '放弃'].includes(text)
 }
 
 const buildDeleteSuccessReply = (event: CalendarEvent): string => {
@@ -228,6 +282,7 @@ export function VoicePanel({ onCreateEvent, onDeleteEvent, onQueryEvents }: Voic
   const [intent, setIntent] = useState<CalendarIntent>()
   const [assistantReply, setAssistantReply] = useState('等待语音输入')
   const [queryResults, setQueryResults] = useState<CalendarEvent[]>([])
+  const [pendingCreate, setPendingCreate] = useState<PendingCreate>()
   const [pendingDelete, setPendingDelete] = useState<PendingDelete>()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { cancel, isSupported: canSpeak, speak } = useSpeechSynthesis()
@@ -237,6 +292,40 @@ export function VoicePanel({ onCreateEvent, onDeleteEvent, onQueryEvents }: Voic
       const normalizedText = commandText.trim()
 
       if (!normalizedText) {
+        return
+      }
+
+      if (pendingCreate && isCancelCreateCommand(normalizedText)) {
+        const cancelReply = '已取消添加操作'
+        setPendingCreate(undefined)
+        setQueryResults([])
+        setLatestCommand(normalizedText)
+        setDraftText(normalizedText)
+        setAssistantReply(cancelReply)
+        speak(cancelReply)
+        return
+      }
+
+      if (pendingCreate && isConfirmCreateCommand(normalizedText)) {
+        setLatestCommand(normalizedText)
+        setDraftText(normalizedText)
+        setIsSubmitting(true)
+
+        try {
+          const createdEvent = await onCreateEvent(pendingCreate.input)
+          const successReply = buildCreateSuccessReply(createdEvent)
+          setPendingCreate(undefined)
+          setQueryResults([])
+          setAssistantReply(successReply)
+          speak(successReply)
+        } catch (error) {
+          const failureReply = buildCreateFailureReply(error)
+          setAssistantReply(failureReply)
+          speak(failureReply)
+        } finally {
+          setIsSubmitting(false)
+        }
+
         return
       }
 
@@ -282,6 +371,7 @@ export function VoicePanel({ onCreateEvent, onDeleteEvent, onQueryEvents }: Voic
       setDraftText(normalizedText)
       setIntent(parsedIntent)
       setQueryResults([])
+      setPendingCreate(undefined)
       setPendingDelete(undefined)
 
       if (parsedIntent.type === 'create') {
@@ -290,6 +380,18 @@ export function VoicePanel({ onCreateEvent, onDeleteEvent, onQueryEvents }: Voic
         if (!createInput) {
           setAssistantReply(reply)
           speak(reply)
+          return
+        }
+
+        const scheduledEvents = onQueryEvents({ status: 'scheduled' })
+        const conflicts = findCreateConflicts(createInput, scheduledEvents)
+
+        if (conflicts.length > 0) {
+          const conflictReply = buildCreateConflictReply(conflicts)
+          setPendingCreate({ input: createInput, conflicts })
+          setQueryResults(conflicts)
+          setAssistantReply(conflictReply)
+          speak(conflictReply)
           return
         }
 
@@ -339,7 +441,7 @@ export function VoicePanel({ onCreateEvent, onDeleteEvent, onQueryEvents }: Voic
       setAssistantReply(reply)
       speak(reply)
     },
-    [onCreateEvent, onDeleteEvent, onQueryEvents, pendingDelete, speak],
+    [onCreateEvent, onDeleteEvent, onQueryEvents, pendingCreate, pendingDelete, speak],
   )
 
   const {
@@ -434,6 +536,9 @@ export function VoicePanel({ onCreateEvent, onDeleteEvent, onQueryEvents }: Voic
               </li>
             ))}
           </ul>
+        ) : null}
+        {pendingCreate ? (
+          <small>等待确认添加：说“确认添加”继续，或说“取消”放弃</small>
         ) : null}
         {pendingDelete ? <small>等待确认删除：说“确认删除”或“取消”</small> : null}
         {isSubmitting ? <small>{pendingDelete ? '正在删除日程...' : '正在创建日程...'}</small> : null}
