@@ -58,7 +58,6 @@ function App() {
     isLoading,
     queryEvents,
     scheduledEvents,
-    updateEvent,
   } = useEvents()
   const today = useMemo(() => new Date(), [])
   const [visibleMonth, setVisibleMonth] = useState(() => new Date())
@@ -84,10 +83,6 @@ function App() {
   const handleSelectDate = (date: Date) => {
     setSelectedDate(date)
     setVisibleMonth(new Date(date.getFullYear(), date.getMonth(), 1))
-  }
-
-  const handleCancelEvent = (eventId: string) => {
-    return updateEvent(eventId, { status: 'cancelled' })
   }
 
   return (
@@ -120,7 +115,7 @@ function App() {
           title={scheduleTitle}
           events={selectedDateEvents}
           emptyLabel={scheduleEmptyLabel}
-          onCancelEvent={handleCancelEvent}
+          onDeleteEvent={deleteEvent}
         />
         <ReminderCenter events={scheduledEvents} />
       </section>

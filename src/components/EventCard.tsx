@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { Clock3, XCircle } from 'lucide-react'
+import { Check, Clock3, Trash2, X, XCircle } from 'lucide-react'
 import type { CalendarEvent } from '../types/calendar'
 
 interface EventCardProps {
   event: CalendarEvent
-  onCancelEvent?: (eventId: string) => Promise<CalendarEvent | undefined>
+  onDeleteEvent?: (eventId: string) => Promise<CalendarEvent | undefined>
 }
 
 const statusLabels: Record<CalendarEvent['status'], string> = {
@@ -20,29 +20,31 @@ const formatEventTime = (value: string): string => {
   })
 }
 
-export function EventCard({ event, onCancelEvent }: EventCardProps) {
-  const [isCancelling, setIsCancelling] = useState(false)
-  const [cancelError, setCancelError] = useState<string>()
-  const canCancel = event.status === 'scheduled' && Boolean(onCancelEvent)
+export function EventCard({ event, onDeleteEvent }: EventCardProps) {
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string>()
+  const canDelete = Boolean(onDeleteEvent)
+  const deleteButtonLabel = event.status === 'scheduled' ? '取消预约' : '删除记录'
 
-  const handleCancelEvent = async () => {
-    if (!onCancelEvent || isCancelling) {
+  const handleDeleteEvent = async () => {
+    if (!onDeleteEvent || isDeleting) {
       return
     }
 
-    setIsCancelling(true)
-    setCancelError(undefined)
+    setIsDeleting(true)
+    setDeleteError(undefined)
 
     try {
-      const cancelledEvent = await onCancelEvent(event.id)
+      const deletedEvent = await onDeleteEvent(event.id)
 
-      if (!cancelledEvent) {
-        setCancelError('日程不存在')
+      if (!deletedEvent) {
+        setDeleteError('日程不存在')
       }
     } catch {
-      setCancelError('取消失败')
+      setDeleteError('删除失败')
     } finally {
-      setIsCancelling(false)
+      setIsDeleting(false)
     }
   }
 
@@ -55,21 +57,47 @@ export function EventCard({ event, onCancelEvent }: EventCardProps) {
       <div className="event-body">
         <h3>{event.title}</h3>
         {event.note ? <p>{event.note}</p> : null}
-        {cancelError ? <p className="event-action-error">{cancelError}</p> : null}
+        {deleteError ? <p className="event-action-error">{deleteError}</p> : null}
       </div>
       <div className="event-actions">
         <span className={`event-status status-${event.status}`}>{statusLabels[event.status]}</span>
-        {canCancel ? (
-          <button
-            className="cancel-event-button"
-            type="button"
-            onClick={handleCancelEvent}
-            disabled={isCancelling}
-            aria-label={`取消预约：${event.title}`}
-          >
-            <XCircle size={15} strokeWidth={2.2} />
-            {isCancelling ? '取消中' : '取消预约'}
-          </button>
+        {canDelete ? (
+          isConfirmingDelete ? (
+            <div className="event-delete-confirm" role="group" aria-label={`确认删除：${event.title}`}>
+              <button
+                className="confirm-delete-button"
+                type="button"
+                onClick={handleDeleteEvent}
+                disabled={isDeleting}
+              >
+                <Check size={14} strokeWidth={2.4} />
+                {isDeleting ? '删除中' : '确认删除'}
+              </button>
+              <button
+                className="dismiss-delete-button"
+                type="button"
+                onClick={() => setIsConfirmingDelete(false)}
+                disabled={isDeleting}
+                aria-label={`放弃删除：${event.title}`}
+              >
+                <X size={14} strokeWidth={2.4} />
+              </button>
+            </div>
+          ) : (
+            <button
+              className="delete-event-button"
+              type="button"
+              onClick={() => setIsConfirmingDelete(true)}
+              aria-label={`${deleteButtonLabel}：${event.title}`}
+            >
+              {event.status === 'scheduled' ? (
+                <XCircle size={15} strokeWidth={2.2} />
+              ) : (
+                <Trash2 size={15} strokeWidth={2.2} />
+              )}
+              {deleteButtonLabel}
+            </button>
+          )
         ) : null}
       </div>
     </article>

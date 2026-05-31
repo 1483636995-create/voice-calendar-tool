@@ -6,10 +6,10 @@ interface EventListProps {
   title: string
   events: CalendarEvent[]
   emptyLabel: string
-  onCancelEvent?: (eventId: string) => Promise<CalendarEvent | undefined>
+  onDeleteEvent?: (eventId: string) => Promise<CalendarEvent | undefined>
 }
 
-export function EventList({ title, events, emptyLabel, onCancelEvent }: EventListProps) {
+export function EventList({ title, events, emptyLabel, onDeleteEvent }: EventListProps) {
   return (
     <section className="event-list-panel" aria-labelledby="event-list-title">
       <div className="panel-heading">
@@ -22,7 +22,7 @@ export function EventList({ title, events, emptyLabel, onCancelEvent }: EventLis
 
       <div className="event-list">
         {events.length > 0 ? (
-          events.map((event) => <EventCard event={event} key={event.id} onCancelEvent={onCancelEvent} />)
+          events.map((event) => <EventCard event={event} key={event.id} onDeleteEvent={onDeleteEvent} />)
         ) : (
           <div className="empty-state">{emptyLabel}</div>
         )}

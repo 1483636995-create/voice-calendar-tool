@@ -581,23 +581,50 @@
   gap: 8px;
 }
 
-.cancel-event-button {
+.delete-event-button,
+.confirm-delete-button,
+.dismiss-delete-button {
   display: inline-flex;
   min-height: 30px;
   align-items: center;
   gap: 5px;
   padding: 0 9px;
-  border-color: #fecaca;
-  color: #991b1b;
-  background: #fff7f7;
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
 }
 
-.cancel-event-button:hover:not(:disabled) {
+.delete-event-button,
+.confirm-delete-button {
+  border-color: #fecaca;
+  color: #991b1b;
+  background: #fff7f7;
+}
+
+.delete-event-button:hover:not(:disabled),
+.confirm-delete-button:hover:not(:disabled) {
   border-color: #fca5a5;
   background: #fee2e2;
+}
+
+.event-delete-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dismiss-delete-button {
+  width: 30px;
+  justify-content: center;
+  padding: 0;
+  border-color: var(--border);
+  color: var(--muted);
+  background: #ffffff;
+}
+
+.dismiss-delete-button:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  color: var(--heading);
 }
 
 .event-body .event-action-error {

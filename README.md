@@ -132,6 +132,7 @@ EVENT_DATA_FILE=/var/data/events.json
 - PR 22：支持新增日程多轮澄清。
 - PR 23：支持手动取消预约。
 - PR 24：点击麦克风时停止当前语音播报。
+- PR 25：手动删除日程时增加确认并清除记录。
 
 ## Demo
 
