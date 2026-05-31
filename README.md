@@ -131,6 +131,7 @@ EVENT_DATA_FILE=/var/data/events.json
 - PR 21：在日历中标记有日程的日期。
 - PR 22：支持新增日程多轮澄清。
 - PR 23：支持手动取消预约。
+- PR 24：点击麦克风时停止当前语音播报。
 
 ## Demo
 
