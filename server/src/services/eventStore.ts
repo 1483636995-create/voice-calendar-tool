@@ -27,6 +27,12 @@ const normalizeDate = (value: string, fieldName: string): string => {
   return date.toISOString()
 }
 
+const ensureFutureStartAt = (startAt: string, now: Date): void => {
+  if (new Date(startAt).getTime() < now.getTime()) {
+    throw new HttpError(400, 'event start time cannot be earlier than current time')
+  }
+}
+
 const normalizeOptionalText = (value: string | null | undefined): string | undefined => {
   if (value === null || value === undefined) {
     return undefined
@@ -123,11 +129,14 @@ const runMutation = async <Result>(mutation: () => Promise<Result>): Promise<Res
 
 const createEventRecord = (input: CreateCalendarEventInput, now: Date = new Date()): CalendarEvent => {
   const createdAt = now.toISOString()
+  const startAt = normalizeDate(input.startAt, 'startAt')
+
+  ensureFutureStartAt(startAt, now)
 
   return {
     id: randomUUID(),
     title: input.title.trim(),
-    startAt: normalizeDate(input.startAt, 'startAt'),
+    startAt,
     endAt: input.endAt ? normalizeDate(input.endAt, 'endAt') : undefined,
     reminderMinutesBefore: normalizeReminder(input.reminderMinutesBefore),
     note: normalizeOptionalText(input.note),

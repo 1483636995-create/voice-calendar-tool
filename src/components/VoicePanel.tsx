@@ -28,6 +28,7 @@ interface PendingCreateClarification {
 }
 
 const DEFAULT_EVENT_DURATION_MS = 30 * 60 * 1000
+const PAST_EVENT_ERROR_MESSAGE = '预约时间已早于当前时间，请选择未来时间'
 
 const intentLabels: Record<CalendarIntent['type'], string> = {
   create: '添加日程',
@@ -102,6 +103,14 @@ const buildCreateSuccessReply = (event: CalendarEvent): string => {
 const buildCreateFailureReply = (error: unknown): string => {
   const reason = error instanceof Error ? error.message : '创建失败'
   return `添加日程失败：${reason}`
+}
+
+const buildPastCreateFailureReply = (): string => {
+  return buildCreateFailureReply(new Error(PAST_EVENT_ERROR_MESSAGE))
+}
+
+const isCreateEventInPast = (input: CreateCalendarEventInput, now: Date = new Date()): boolean => {
+  return new Date(input.startAt).getTime() < now.getTime()
 }
 
 const buildCreateClarificationReply = (intent: CreateEventIntent): string => {
@@ -396,6 +405,16 @@ export function VoicePanel({ onCreateEvent, onDeleteEvent, onQueryEvents }: Voic
       if (pendingCreate && isConfirmCreateCommand(normalizedText)) {
         setLatestCommand(normalizedText)
         setDraftText(normalizedText)
+
+        if (isCreateEventInPast(pendingCreate.input)) {
+          const failureReply = buildPastCreateFailureReply()
+          setPendingCreate(undefined)
+          setQueryResults([])
+          setAssistantReply(failureReply)
+          speak(failureReply)
+          return
+        }
+
         setIsSubmitting(true)
 
         try {
@@ -474,6 +493,13 @@ export function VoicePanel({ onCreateEvent, onDeleteEvent, onQueryEvents }: Voic
           setPendingCreateClarification({ commandText: commandForIntent, intent: parsedIntent })
           setAssistantReply(clarificationReply)
           speak(clarificationReply)
+          return
+        }
+
+        if (isCreateEventInPast(createInput)) {
+          const failureReply = buildPastCreateFailureReply()
+          setAssistantReply(failureReply)
+          speak(failureReply)
           return
         }
 
