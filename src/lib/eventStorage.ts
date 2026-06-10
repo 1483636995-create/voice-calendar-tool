@@ -44,6 +44,12 @@ const normalizeOptionalDate = (
   return normalizeDate(value, fieldName)
 }
 
+const ensureFutureStartAt = (startAt: string, now: Date): void => {
+  if (new Date(startAt).getTime() < now.getTime()) {
+    throw new Error('预约时间不能早于当前时间')
+  }
+}
+
 const normalizeTitle = (title: string): string => {
   const normalizedTitle = title.trim()
 
@@ -129,11 +135,14 @@ export const createCalendarEvent = (
   now: Date = new Date(),
 ): CalendarEvent => {
   const createdAt = now.toISOString()
+  const startAt = normalizeDate(input.startAt, 'startAt')
+
+  ensureFutureStartAt(startAt, now)
 
   return {
     id: createEventId(),
     title: normalizeTitle(input.title),
-    startAt: normalizeDate(input.startAt, 'startAt'),
+    startAt,
     endAt: normalizeOptionalDate(input.endAt, 'endAt'),
     reminderMinutesBefore: normalizeReminder(input.reminderMinutesBefore),
     note: normalizeOptionalText(input.note),

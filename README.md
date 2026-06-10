@@ -170,6 +170,7 @@ EVENT_DATA_FILE=/var/data/events.json
 - PR 25：手动删除日程时增加确认并清除记录。
 - PR 26：补充 Demo 视频链接与最终使用示例。
 - PR 27：日历和日程栏隐藏已过期预约。
+- PR 28：添加日程时拒绝早于当前时间的预约。
 
 ## Demo
 
