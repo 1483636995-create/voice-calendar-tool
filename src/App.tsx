@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import { CalendarView } from './components/CalendarView'
 import { EventList } from './components/EventList'
 import { ReminderCenter } from './components/ReminderCenter'
 import { VoicePanel } from './components/VoicePanel'
 import { useEvents } from './hooks/useEvents'
+import { filterEventsByRange } from './lib/eventStorage'
+import type { CalendarEvent, EventDateRange } from './types/calendar'
 
 const getStartOfDay = (date: Date): Date => {
   const nextDate = new Date(date)
@@ -48,6 +50,14 @@ const formatScheduleDateLabel = (date: Date): string => {
   })
 }
 
+const isUpcomingScheduledEvent = (event: CalendarEvent, now: Date): boolean => {
+  return event.status === 'scheduled' && new Date(event.startAt).getTime() > now.getTime()
+}
+
+const queryVisibleEvents = (events: CalendarEvent[], range: EventDateRange): CalendarEvent[] => {
+  return filterEventsByRange(events, range)
+}
+
 function App() {
   const {
     addEvent,
@@ -59,12 +69,20 @@ function App() {
     queryEvents,
     scheduledEvents,
   } = useEvents()
-  const today = useMemo(() => new Date(), [])
+  const [now, setNow] = useState(() => new Date())
+  const today = now
   const [visibleMonth, setVisibleMonth] = useState(() => new Date())
   const [selectedDate, setSelectedDate] = useState(() => new Date())
-  const todayEvents = queryEvents({ from: getStartOfDay(today), to: getEndOfDay(today) })
-  const weekEvents = queryEvents({ from: getStartOfWeek(today), to: getEndOfWeek(today) })
-  const selectedDateEvents = queryEvents({ from: getStartOfDay(selectedDate), to: getEndOfDay(selectedDate) })
+  const visibleEvents = useMemo(
+    () => events.filter((event) => isUpcomingScheduledEvent(event, now)),
+    [events, now],
+  )
+  const todayEvents = queryVisibleEvents(visibleEvents, { from: getStartOfDay(today), to: getEndOfDay(today) })
+  const weekEvents = queryVisibleEvents(visibleEvents, { from: getStartOfWeek(today), to: getEndOfWeek(today) })
+  const selectedDateEvents = queryVisibleEvents(visibleEvents, {
+    from: getStartOfDay(selectedDate),
+    to: getEndOfDay(selectedDate),
+  })
   const isSelectedToday = isSameCalendarDay(selectedDate, today)
   const selectedDateLabel = formatScheduleDateLabel(selectedDate)
   const scheduleTitle = isSelectedToday ? '今日日程' : `${selectedDateLabel}日程`
@@ -85,6 +103,14 @@ function App() {
     setVisibleMonth(new Date(date.getFullYear(), date.getMonth(), 1))
   }
 
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setNow(new Date())
+    }, 60 * 1000)
+
+    return () => window.clearInterval(intervalId)
+  }, [])
+
   return (
     <main className="app-shell">
       <header className="app-header">
@@ -101,7 +127,7 @@ function App() {
       <section className="dashboard-grid" aria-label="语音日历工作台">
         <VoicePanel onCreateEvent={addEvent} onDeleteEvent={deleteEvent} onQueryEvents={queryEvents} />
         <CalendarView
-          events={events}
+          events={visibleEvents}
           today={today}
           visibleMonth={visibleMonth}
           selectedDate={selectedDate}
@@ -109,7 +135,7 @@ function App() {
           onSelectDate={handleSelectDate}
           todayCount={todayEvents.length}
           weekCount={weekEvents.length}
-          totalCount={events.length}
+          totalCount={visibleEvents.length}
         />
         <EventList
           title={scheduleTitle}
